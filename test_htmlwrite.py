@@ -109,3 +109,12 @@ class TestWriter(unittest.TestCase):
             '</div>'
         )
 
+    @unittest.expectedFailure
+    def test_tag_same_line(self):
+        with self.writer.c(Tag('div')):
+            self.writer(Tag('span', c='Hello world'), same_line=True)
+        self.assertOutputEqual(
+            '<div><span>\n'
+            '  Hello world\n'
+            '</span></div>'
+        )
