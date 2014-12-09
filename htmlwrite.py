@@ -12,9 +12,9 @@ def partition(items, predicate=bool):
 
 
 def optimize_attr_name(name):
-    while name.endswith("_"):
+    while name.endswith('_'):
         name = name[:-1]
-    name = name.replace("_", "-")
+    name = name.replace('_', '-')
     return name
 
 tag_start = Markup('<{}>')
@@ -29,6 +29,33 @@ class_join = Markup(' ').join
 args_item = Markup('{}="{}"').format
 args_join = Markup(' ').join
 
+nothing = Markup('')
+
+boolean_attrs = {
+    'checked',
+    'defer',
+    'disabled',
+    'multiple',
+    'readonly',
+    'selected',
+}
+
+void_tags = {
+    'area',
+    'base',
+    'basefont',
+    'br',
+    'col',
+    'frame',
+    'hr',
+    'img',
+    'input',
+    'isindex',
+    'link',
+    'meta',
+    'param',
+}
+
 
 class Tag(object):
     __slots__ = ['tag_name', 'contents', 'args', '_empty_tag', '_start_tag', '_end_tag']
@@ -39,18 +66,20 @@ class Tag(object):
         self.contents = args.pop('c', None)
         style_args_a = args.pop('style', ())
         class_ = args.pop('class_', ())
+        if isinstance(class_, str):
+            class_ = (class_, )
         tag_args, style_args_b = partition(args.items(), lambda i: i[0].startswith('s_'))
         tag_args = ((optimize_attr_name(k), v) for k, v in tag_args)
+        tag_args = sorted(tag_args)  # For stability in tests (We want PEP 468!)
 
         if isinstance(style_args_a, dict):
             style_args_a = style_args_a.items()
         style_args_b = ((k[2:], v) for k, v in style_args_b)
-        style_args = ((optimize_attr_name(k), v) for k, v in chain(style_args_a, style_args_b))
-        style = style_join((style_item(*item) for item in style_args))
+        style = style_join((style_item(optimize_attr_name(k), v) for k, v in chain(style_args_a, style_args_b)))
         class_ = class_join(class_)
-        tag_args = chain(tag_args, (('style', style), ('class', class_)))
-        tag_args = (arg for arg in tag_args if arg[1])
-        self.args = args_join(args_item(*item) for item in tag_args)
+        tag_args = chain((('class', class_), ('style', style)), tag_args)
+        self.args = args_join(k if k in boolean_attrs else args_item(k, v)
+                              for k, v in tag_args if v)
 
         self._start_tag = None
         self._empty_tag = None
@@ -68,16 +97,22 @@ class Tag(object):
     @property
     def empty_tag(self):
         if not self._empty_tag:
-            if self.args:
-                self._empty_tag = tag_empty_start_with_args.format(self.tag_name, self.args)
+            if self.tag_name not in void_tags:
+                if self.args:
+                    self._empty_tag = tag_empty_start_with_args.format(self.tag_name, self.args)
+                else:
+                    self._empty_tag = tag_empty_start.format(self.tag_name)
             else:
-                self._empty_tag = tag_empty_start.format(self.tag_name)
+                self._empty_tag = self.start_tag
         return self._empty_tag
 
     @property
     def end_tag(self):
         if not self._end_tag:
-            self._end_tag = tag_end.format(self.tag_name)
+            if self.tag_name not in void_tags:
+                self._end_tag = tag_end.format(self.tag_name)
+            else:
+                self._end_tag = nothing
         return self._end_tag
 
 writer_stack_item = collections.namedtuple('WriterStackItem', ['tag', 'indent_level', 'contents_same_line'])

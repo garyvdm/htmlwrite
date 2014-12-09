@@ -11,6 +11,12 @@ class TestTag(unittest.TestCase):
         self.assertEqual(tag.end_tag, '</div>')
         self.assertEqual(tag.empty_tag, '<div />')
 
+    def test_void_tag(self):
+        tag = Tag('br')
+        self.assertEqual(tag.start_tag, '<br>')
+        self.assertEqual(tag.end_tag, '')
+        self.assertEqual(tag.empty_tag, '<br>')
+
     def test_args(self):
         tag = Tag('div', foo='bar')
         self.assertEqual(tag.start_tag, '<div foo="bar">')
@@ -34,11 +40,11 @@ class TestTag(unittest.TestCase):
         self.assertEqual(tag.start_tag, '<div class="foo">')
 
     def test_bool_arg_true(self):
-        tag = Tag('input', type_="checkbox", checked=True)
-        self.assertEqual(tag.start_tag, '<input type="checkbox" checked>')
+        tag = Tag('input', checked=True, type_="checkbox")
+        self.assertEqual(tag.start_tag, '<input checked type="checkbox">')
 
     def test_bool_arg_false(self):
-        tag = Tag('input', type_="checkbox", checked=False)
+        tag = Tag('input', checked=False, type_="checkbox")
         self.assertEqual(tag.start_tag, '<input type="checkbox">')
 
 
@@ -102,3 +108,4 @@ class TestWriter(unittest.TestCase):
             '  Hello world\n'
             '</div>'
         )
+
