@@ -113,10 +113,7 @@ class Writer(object):
 
     def write(self, item, same_line=False, contents_same_line=False):
         if isinstance(item, Tag):
-            if item.contents is None:
-                return self.wrapped(item, same_line, contents_same_line)
-            else:
-                self.write_tag(item, same_line, contents_same_line)
+            self.write_tag(item, same_line, contents_same_line)
         else:
             current_stack = self.get_current_stack()
             self._write_whitespace(current_stack, same_line, False)
@@ -125,12 +122,15 @@ class Writer(object):
     __call__ = write
 
     def write_tag(self, tag, same_line=False, contents_same_line=False):
+        current_stack = self.get_current_stack()
         if tag.contents:
-            with self.wrapped(tag, same_line, contents_same_line):
-                for item in tag.contents:
-                    self.write(item)
+            with self.c(tag, same_line, contents_same_line):
+                if isinstance(tag.contents, str):
+                    self.write(tag.contents)
+                else:
+                    for item in tag.contents:
+                        self.write(item)
         else:
-            current_stack = self.get_current_stack()
             self._write_whitespace(current_stack, same_line, True)
             self.out_file.write(tag.empty_tag)
 
@@ -149,15 +149,17 @@ class Writer(object):
         self._last_write_is_tag = True
         self.out_file.write(popped_stack.tag.end_tag)
 
-    def wrapped(self, tag, same_line=False, contents_same_line=False):
+    def context(self, tag, same_line=False, contents_same_line=False):
         return TagWriterContext(functools.partial(self.write_start_tag, tag, same_line, contents_same_line),
                                 self.write_end_tag)
 
+    c = context
+
     def _write_whitespace(self, current_stack, same_line, is_tag):
-        if not same_line or current_stack.contents_same_line:
+        if not (same_line or current_stack.contents_same_line):
             fmt = '{}' if self._first_line else '\n{}'
             self.out_file.write(fmt.format(self.indent * current_stack.indent_level))
-        elif not is_tag and self._last_write_is_tag:
+        elif not is_tag and not self._last_write_is_tag:
             self.out_file.write(' ')
         self._first_line = False
         self._last_write_is_tag = is_tag

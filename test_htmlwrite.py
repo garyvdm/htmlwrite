@@ -60,12 +60,45 @@ class TestWriter(unittest.TestCase):
         self.writer('world')
         self.assertOutputEqual('Hello\nworld')
 
-    def test_write_str_2_sameline(self):
+    def test_write_str_2_same_line(self):
         self.writer('Hello')
-        self.writer(' world', same_line=True)
+        self.writer('world', same_line=True)
         self.assertOutputEqual('Hello world')
+        # Note that a space is automatically written.
 
     def test_write_empty_tag(self):
-        self.writer(Tag('div', c=()))
+        self.writer(Tag('div'))
         self.assertOutputEqual('<div />')
 
+    def test_write_tag_with_str_contents(self):
+        self.writer(Tag('div', c='Hello world'))
+        self.assertOutputEqual(
+            '<div>\n'
+            '  Hello world\n'
+            '</div>'
+        )
+
+    def test_write_tag_with_list_contents(self):
+        self.writer(Tag('div', c=[
+            'Hello world',
+            Tag('foo')
+        ]))
+        self.assertOutputEqual(
+            '<div>\n'
+            '  Hello world\n'
+            '  <foo />\n'
+            '</div>'
+        )
+
+    def test_write_tag_with_contents_same_line(self):
+        self.writer(Tag('div', c=['Hello', 'world']), contents_same_line=True)
+        self.assertOutputEqual('<div>Hello world</div>')
+
+    def test_tag_context(self):
+        with self.writer.c(Tag('div')):
+            self.writer('Hello world')
+        self.assertOutputEqual(
+            '<div>\n'
+            '  Hello world\n'
+            '</div>'
+        )
