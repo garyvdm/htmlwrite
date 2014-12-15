@@ -66,6 +66,10 @@ class TestWriter(unittest.TestCase):
         self.writer('world')
         self.assertOutputEqual('Hello\nworld')
 
+    def test_write_list(self):
+        self.writer(['Hello', 'world'])
+        self.assertOutputEqual('Hello\nworld')
+
     def test_write_str_2_same_line(self):
         self.writer('Hello')
         self.writer('world', same_line=True)

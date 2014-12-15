@@ -149,6 +149,9 @@ class Writer(object):
     def write(self, item, same_line=False, contents_same_line=False):
         if isinstance(item, Tag):
             self.write_tag(item, same_line, contents_same_line)
+        elif isinstance(item, (list, tuple)):
+            for subitem in item:
+                self.write(subitem, same_line, contents_same_line)
         else:
             current_stack = self.get_current_stack()
             self._write_whitespace(current_stack, same_line, False)
