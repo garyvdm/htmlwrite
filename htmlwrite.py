@@ -146,7 +146,7 @@ class Writer(object):
         except IndexError:
             return self.root_stack
 
-    def write(self, item, same_line=False, contents_same_line=False):
+    def write(self, item, same_line=False, contents_same_line=True):
         if isinstance(item, Tag):
             self.write_tag(item, same_line, contents_same_line)
         elif isinstance(item, (list, tuple)):
@@ -159,7 +159,7 @@ class Writer(object):
 
     __call__ = write
 
-    def write_tag(self, tag, same_line=False, contents_same_line=False):
+    def write_tag(self, tag, same_line=False, contents_same_line=True):
         current_stack = self.get_current_stack()
         if tag.contents:
             with self.c(tag, same_line, contents_same_line):
