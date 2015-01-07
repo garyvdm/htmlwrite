@@ -17,17 +17,17 @@ def optimize_attr_name(name):
     name = name.replace('_', '-')
     return name
 
-tag_start = Markup('<{}>')
-tag_start_with_args = Markup('<{} {}>')
-tag_empty_start = Markup('<{} />')
-tag_empty_start_with_args = Markup('<{} {} />')
-tag_end = Markup('</{}>')
+tag_start = '<{}>'.format
+tag_start_with_args = '<{} {}>'.format
+tag_empty_start = '<{} />'.format
+tag_empty_start_with_args = '<{} {} />'.format
+tag_end = '</{}>'.format
 
-style_item = Markup('{}: {};').format
-style_join = Markup(' ').join
-class_join = Markup(' ').join
-args_item = Markup('{}="{}"').format
-args_join = Markup(' ').join
+style_item = '{}: {};'.format
+style_join = ' '.join
+class_join = ' '.join
+args_item = '{}="{}"'.format
+args_join = ' '.join
 
 nothing = Markup('')
 
@@ -57,30 +57,33 @@ void_tags = {
 }
 
 
+def process_args(args):
+    style_args_a = args.get('style', ())
+    class_ = args.get('class_', ())
+
+    remaining_args = (item for item in args.items() if item[0] not in ('c', 'style', 'class_'))
+
+    tag_args, style_args_b = partition(remaining_args, lambda i: i[0].startswith('s_'))
+    tag_args = ((optimize_attr_name(k), v) for k, v in tag_args)
+    tag_args = sorted(tag_args)  # For stability in tests (We want PEP 468!)
+
+    if isinstance(style_args_a, dict):
+        style_args_a = style_args_a.items()
+    style_args_b = ((k[2:], v) for k, v in style_args_b)
+    style = style_join((style_item(optimize_attr_name(k), escape(v)) for k, v in chain(style_args_a, style_args_b)))
+    if not isinstance(class_, str):
+        class_ = class_join(class_)
+    tag_args = chain((('class', class_), ('style', style)), tag_args)
+    return args_join(k if k in boolean_attrs else args_item(k, escape(v))
+                     for k, v in tag_args if v)
+
 class Tag(object):
     __slots__ = ['tag_name', 'contents', 'args', '_empty_tag', '_start_tag', '_end_tag']
 
     def __init__(self, tag_name, **args):
         self.tag_name = tag_name
-
-        self.contents = args.pop('c', None)
-        style_args_a = args.pop('style', ())
-        class_ = args.pop('class_', ())
-        if isinstance(class_, str):
-            class_ = (class_, )
-        tag_args, style_args_b = partition(args.items(), lambda i: i[0].startswith('s_'))
-        tag_args = ((optimize_attr_name(k), v) for k, v in tag_args)
-        tag_args = sorted(tag_args)  # For stability in tests (We want PEP 468!)
-
-        if isinstance(style_args_a, dict):
-            style_args_a = style_args_a.items()
-        style_args_b = ((k[2:], v) for k, v in style_args_b)
-        style = style_join((style_item(optimize_attr_name(k), v) for k, v in chain(style_args_a, style_args_b)))
-        class_ = class_join(class_)
-        tag_args = chain((('class', class_), ('style', style)), tag_args)
-        self.args = args_join(k if k in boolean_attrs else args_item(k, v)
-                              for k, v in tag_args if v)
-
+        self.contents = args.get('c', None)
+        self.args = process_args(args)
         self._start_tag = None
         self._empty_tag = None
         self._end_tag = None
@@ -89,9 +92,9 @@ class Tag(object):
     def start_tag(self):
         if not self._start_tag:
             if self.args:
-                self._start_tag = tag_start_with_args.format(self.tag_name, self.args)
+                self._start_tag = tag_start_with_args(self.tag_name, self.args)
             else:
-                self._start_tag = tag_start.format(self.tag_name)
+                self._start_tag = tag_start(self.tag_name)
         return self._start_tag
 
     @property
@@ -99,9 +102,9 @@ class Tag(object):
         if not self._empty_tag:
             if self.tag_name not in void_tags:
                 if self.args:
-                    self._empty_tag = tag_empty_start_with_args.format(self.tag_name, self.args)
+                    self._empty_tag = tag_empty_start_with_args(self.tag_name, self.args)
                 else:
-                    self._empty_tag = tag_empty_start.format(self.tag_name)
+                    self._empty_tag = tag_empty_start(self.tag_name)
             else:
                 self._empty_tag = self.start_tag
         return self._empty_tag
@@ -110,7 +113,7 @@ class Tag(object):
     def end_tag(self):
         if not self._end_tag:
             if self.tag_name not in void_tags:
-                self._end_tag = tag_end.format(self.tag_name)
+                self._end_tag = tag_end(self.tag_name)
             else:
                 self._end_tag = nothing
         return self._end_tag
@@ -128,7 +131,6 @@ class TagWriterContext(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.write_end_tag()
         return False
-
 
 class Writer(object):
 
