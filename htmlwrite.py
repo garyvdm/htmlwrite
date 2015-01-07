@@ -157,8 +157,8 @@ class Writer(object):
         else:
             current_stack = self.get_current_stack()
             self._write_whitespace(current_stack, same_line, False)
-            self.out_file.write(escape(item))
-
+            if item is not None:
+                self.out_file.write(escape(item))
     __call__ = write
 
     def write_tag(self, tag, same_line=False, contents_same_line=True):
