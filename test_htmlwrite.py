@@ -1,7 +1,9 @@
+from __future__ import unicode_literals
 import unittest
 import io
 
 from htmlwrite import Tag, Writer
+
 
 class TestTag(unittest.TestCase):
 

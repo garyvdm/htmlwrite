@@ -1,8 +1,12 @@
+from __future__ import unicode_literals
+import sys
 import collections
 import functools
 from itertools import tee, chain
 
 from markupsafe import Markup, escape
+PY2 = sys.version_info[0] == 2
+str_type = unicode if PY2 else str
 
 
 def partition(items, predicate=bool):
@@ -71,7 +75,7 @@ def process_args(args):
         style_args_a = style_args_a.items()
     style_args_b = ((k[2:], v) for k, v in style_args_b)
     style = style_join((style_item(optimize_attr_name(k), escape(v)) for k, v in chain(style_args_a, style_args_b)))
-    if not isinstance(class_, str):
+    if not isinstance(class_, str_type):
         class_ = class_join(class_)
     tag_args = chain((('class', class_), ('style', style)), tag_args)
     return args_join(k if k in boolean_attrs else args_item(k, escape(v))
@@ -165,7 +169,7 @@ class Writer(object):
         current_stack = self.get_current_stack()
         if tag.contents:
             with self.c(tag, same_line, contents_same_line):
-                if isinstance(tag.contents, str):
+                if isinstance(tag.contents, str_type):
                     self.write(tag.contents)
                 else:
                     for item in tag.contents:
