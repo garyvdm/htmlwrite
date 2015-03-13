@@ -19,6 +19,10 @@ class TestTag(unittest.TestCase):
         self.assertEqual(tag.end_tag, '')
         self.assertEqual(tag.empty_tag, '<br>')
 
+    def test_non_self_closing_tag(self):
+        tag = Tag('script')
+        self.assertEqual(tag.empty_tag, '<script></script>')
+
     def test_args(self):
         tag = Tag('div', foo='bar')
         self.assertEqual(tag.start_tag, '<div foo="bar">')
