@@ -111,15 +111,10 @@ class Tag(object):
     @property
     def empty_tag(self):
         if not self._empty_tag:
-            if self.tag_name in non_self_closing_tags:
+            if self.tag_name not in void_tags:
+                # HTML5 does not allow self closing empty tag.
+                # TODO: Add support to switch between HTML5 and HTML4 modes
                 self._empty_tag = self.start_tag + self.end_tag
-
-            elif self.tag_name not in void_tags:
-                if self.args:
-                    self._empty_tag = tag_empty_start_with_args(self.tag_name, self.args)
-                else:
-                    self._empty_tag = tag_empty_start(self.tag_name)
-
             else:
                 self._empty_tag = self.start_tag
         return self._empty_tag

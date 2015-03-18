@@ -11,7 +11,7 @@ class TestTag(unittest.TestCase):
         tag = Tag('div')
         self.assertEqual(tag.start_tag, '<div>')
         self.assertEqual(tag.end_tag, '</div>')
-        self.assertEqual(tag.empty_tag, '<div />')
+        self.assertEqual(tag.empty_tag, '<div></div>')
 
     def test_void_tag(self):
         tag = Tag('br')
@@ -27,7 +27,7 @@ class TestTag(unittest.TestCase):
         tag = Tag('div', foo='bar')
         self.assertEqual(tag.start_tag, '<div foo="bar">')
         self.assertEqual(tag.end_tag, '</div>')
-        self.assertEqual(tag.empty_tag, '<div foo="bar" />')
+        self.assertEqual(tag.empty_tag, '<div foo="bar"></div>')
 
     def test_style(self):
         tag = Tag('div', style={'foo': 'bar'}, s_moo='cow')
@@ -84,7 +84,7 @@ class TestWriter(unittest.TestCase):
 
     def test_write_empty_tag(self):
         self.writer(Tag('div'))
-        self.assertOutputEqual('<div />')
+        self.assertOutputEqual('<div></div>')
 
     def test_write_tag_with_str_contents(self):
         self.writer(Tag('div', c='Hello world'))
@@ -95,7 +95,7 @@ class TestWriter(unittest.TestCase):
             'Hello world',
             Tag('foo')
         ]))
-        self.assertOutputEqual('<div>Hello world<foo /></div>')
+        self.assertOutputEqual('<div>Hello world<foo></foo></div>')
 
     def test_write_tag_with_not_contents_same_line(self):
         self.writer(Tag('div', c=['Hello', 'world']), contents_same_line=False)
