@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 import sys
 import collections
 import functools
+import contextlib
+import io
 from itertools import tee, chain
 
 from markupsafe import Markup, escape
@@ -213,3 +215,13 @@ class Writer(object):
             self.out_file.write(' ')
         self._first_line = False
         self._last_write_is_tag = is_tag
+
+    @contextlib.contextmanager
+    def only_write_if_successful(self):
+        old_out_file = self.out_file
+        self.out_file = io.StringIO()
+        try:
+            yield
+            old_out_file.write(self.out_file.getvalue())
+        finally:
+            self.out_file = old_out_file
