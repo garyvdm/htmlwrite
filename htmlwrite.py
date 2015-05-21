@@ -8,7 +8,7 @@ from itertools import tee, chain
 
 from markupsafe import Markup, escape
 PY2 = sys.version_info[0] == 2
-str_types = (str, unicode) if PY2 else (str, )
+str_types = basestring if PY2 else (str, )
 
 
 def partition(items, predicate=bool):
