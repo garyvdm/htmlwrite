@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 
 import setuptools
+import subprocess
 
 with open('README.md') as f:
     readme = f.read()
 
+version = subprocess.check_output(['git', 'describe']).decode().strip()
+
 setuptools.setup(
     name='htmlwrite',
-    version='1.0',
+    version=version,
     description='Write html to a file like object, using a pythonic syntax.',
     long_description=readme,
     url='https://github.com/garyvdm/htmlwrite',
