@@ -144,8 +144,8 @@ class TagWriterContext(object):
         self.write_end_tag()
         return False
 
-class Writer(object):
 
+class Writer(object):
     def __init__(self, out_file, indent='  '):
         self.out_file = out_file
         self.stack = collections.deque()
