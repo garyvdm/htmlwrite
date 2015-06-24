@@ -7,7 +7,7 @@ setup(
     pbr=True,
     py_modules=['htmlwrite', ],
     include_package_data=True,
-    install_requires=['MarkupSafe', ],
+    install_requires=['MarkupSafe', 'cachetools', ],
     test_suite='test_htmlwrite',
 )
 

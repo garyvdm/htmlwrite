@@ -7,6 +7,8 @@ import io
 from itertools import tee, chain
 
 from markupsafe import Markup, escape
+import cachetools
+
 PY2 = sys.version_info[0] == 2
 str_types = basestring if PY2 else (str, )
 
@@ -68,67 +70,63 @@ non_self_closing_tags = {
     'a',
 }
 
-
-def process_args(args):
-    style_args_a = args.get('style', ())
-    class_ = args.get('class_', ())
-
-    remaining_args = (item for item in args.items() if item[0] not in ('c', 'style', 'class_'))
-
-    tag_args, style_args_b = partition(remaining_args, lambda i: i[0].startswith('s_'))
+@cachetools.lru_cache(2048)
+def _start_tag(tag_name, style, class_, args):
+    tag_args, style_from_args = partition(args, lambda i: i[0].startswith('s_'))
     tag_args = ((optimize_attr_name(k), v) for k, v in tag_args)
-    tag_args = sorted(tag_args)  # For stability in tests (We want PEP 468!)
 
-    if isinstance(style_args_a, dict):
-        style_args_a = style_args_a.items()
-    style_args_b = ((k[2:], v) for k, v in style_args_b)
-    style = style_join((style_item(optimize_attr_name(k), escape(v)) for k, v in chain(style_args_a, style_args_b)))
+    style_from_args = ((k[2:], v) for k, v in style_from_args)
+    style = style_join((style_item(optimize_attr_name(k), escape(v)) for k, v in chain(style, style_from_args)))
     if not isinstance(class_, str_types):
         class_ = class_join(class_)
     tag_args = chain((('class', class_), ('style', style)), tag_args)
-    return args_join(k if k in boolean_attrs else args_item(k, escape(v))
-                     for k, v in tag_args if v)
-
+    args_html = args_join(k if k in boolean_attrs else args_item(k, escape(v))
+                          for k, v in tag_args if v)
+    if args_html:
+        return tag_start_with_args(tag_name, args_html)
+    else:
+        return tag_start(tag_name)
 
 class Tag(object):
-    __slots__ = ['tag_name', 'contents', 'args', '_empty_tag', '_start_tag', '_end_tag']
+    __slots__ = ['tag_name', 'contents', 'style', 'class_', 'args', ]
 
-    def __init__(self, tag_name, **args):
+    def __init__(self, tag_name, c=None, style=(), class_=(), **args):
         self.tag_name = tag_name
-        self.contents = args.get('c', None)
-        self.args = process_args(args)
-        self._start_tag = None
-        self._empty_tag = None
-        self._end_tag = None
+        self.contents = c
+        # Freeze args so that tag methods can be cached
+        # Sort the dict items for stability in tests (We want PEP 468!)
+        self.args = tuple(sorted(args.items()))
+        if isinstance(style, dict):
+            self.style = tuple(style.items())
+        elif isinstance(style, list):
+            self.style = tuple(style)
+        else:
+            self.style = style
+
+        if isinstance(class_, list):
+            self.class_ = tuple(class_)
+        else:
+            self.class_ = class_
 
     @property
     def start_tag(self):
-        if not self._start_tag:
-            if self.args:
-                self._start_tag = tag_start_with_args(self.tag_name, self.args)
-            else:
-                self._start_tag = tag_start(self.tag_name)
-        return self._start_tag
+        return _start_tag(self.tag_name, self.style, self.class_, self.args)
 
     @property
     def empty_tag(self):
-        if not self._empty_tag:
-            if self.tag_name not in void_tags:
-                # HTML5 does not allow self closing empty tag.
-                # TODO: Add support to switch between HTML5 and HTML4 modes
-                self._empty_tag = self.start_tag + self.end_tag
-            else:
-                self._empty_tag = self.start_tag
-        return self._empty_tag
+        if self.tag_name not in void_tags:
+            # HTML5 does not allow self closing empty tag.
+            # TODO: Add support to switch between HTML5 and HTML4 modes
+            return self.start_tag + self.end_tag
+        else:
+            return self.start_tag
 
     @property
     def end_tag(self):
-        if not self._end_tag:
-            if self.tag_name not in void_tags:
-                self._end_tag = tag_end(self.tag_name)
-            else:
-                self._end_tag = nothing
-        return self._end_tag
+        if self.tag_name not in void_tags:
+            return tag_end(self.tag_name)
+        else:
+            return nothing
 
 writer_stack_item = collections.namedtuple('WriterStackItem', ['tag', 'indent_level', 'contents_same_line'])
 
@@ -172,6 +170,7 @@ class Writer(object):
             if item is not None:
                 self.out_file.write(escape(item))
     __call__ = write
+    w = write
 
     def write_tag(self, tag, same_line=False, contents_same_line=True):
         current_stack = self.get_current_stack()
