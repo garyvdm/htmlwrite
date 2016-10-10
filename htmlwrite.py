@@ -7,7 +7,7 @@ import io
 from itertools import tee, chain
 
 from markupsafe import Markup, escape
-import cachetools
+import cachetools.func
 
 PY2 = sys.version_info[0] == 2
 str_types = basestring if PY2 else (str, )
@@ -70,7 +70,7 @@ non_self_closing_tags = {
     'a',
 }
 
-@cachetools.lru_cache(2048)
+@cachetools.func.lru_cache(2048)
 def _start_tag(tag_name, style, class_, args):
     tag_args, style_from_args = partition(args, lambda i: i[0].startswith('s_'))
     tag_args = ((optimize_attr_name(k), v) for k, v in tag_args)
