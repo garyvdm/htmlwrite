@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
-import unittest
+
 import io
+import unittest
 
 from htmlwrite import Tag, Writer
 

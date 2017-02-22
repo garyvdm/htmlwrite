@@ -1,13 +1,16 @@
 from __future__ import unicode_literals
-import sys
+
 import collections
-import functools
 import contextlib
+import functools
 import io
-from itertools import tee, chain
+import sys
+
+from itertools import chain, tee
+
+import cachetools.func
 
 from markupsafe import Markup, escape
-import cachetools.func
 
 PY2 = sys.version_info[0] == 2
 str_types = basestring if PY2 else (str, )
@@ -24,6 +27,7 @@ def optimize_attr_name(name):
         name = name[:-1]
     name = name.replace('_', '-')
     return name
+
 
 tag_start = '<{}>'.format
 tag_start_with_args = '<{} {}>'.format
@@ -70,6 +74,7 @@ non_self_closing_tags = {
     'a',
 }
 
+
 @cachetools.func.lru_cache(2048)
 def _start_tag(tag_name, style, class_, args):
     tag_args, style_from_args = partition(args, lambda i: i[0].startswith('s_'))
@@ -86,6 +91,7 @@ def _start_tag(tag_name, style, class_, args):
         return tag_start_with_args(tag_name, args_html)
     else:
         return tag_start(tag_name)
+
 
 class Tag(object):
     __slots__ = ['tag_name', 'contents', 'style', 'class_', 'args', ]
@@ -127,6 +133,7 @@ class Tag(object):
             return tag_end(self.tag_name)
         else:
             return nothing
+
 
 writer_stack_item = collections.namedtuple('WriterStackItem', ['tag', 'indent_level', 'contents_same_line'])
 
