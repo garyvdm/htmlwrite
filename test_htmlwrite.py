@@ -116,6 +116,35 @@ class TestWriter(unittest.TestCase):
             '</div>'
         )
 
+    def test_tag_context_no_indent(self):
+        with self.writer.c(Tag('div')):
+            self.writer('Hello world', indent=False)
+        self.assertOutputEqual(
+            '<div>\n'
+            'Hello world\n'
+            '</div>'
+        )
+
+    def test_tag_context_tag_no_indent(self):
+        with self.writer.c(Tag('div')):
+            self.writer.write_tag(Tag('span', c='Hello world'), indent_tag=False)
+        self.assertOutputEqual(
+            '<div>\n'
+            '<span>Hello world</span>\n'
+            '</div>'
+        )
+
+    def test_tag_context_tag_content_no_indent(self):
+        with self.writer.c(Tag('div')):
+            self.writer.write_tag(Tag('span', c='Hello world'), indent_contents=False, contents_same_line=False)
+        self.assertOutputEqual(
+            '<div>\n'
+            '  <span>\n'
+            'Hello world\n'
+            '  </span>\n'
+            '</div>'
+        )
+
     @unittest.expectedFailure
     def test_tag_same_line(self):
         with self.writer.c(Tag('div')):

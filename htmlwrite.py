@@ -165,7 +165,7 @@ class Writer(object):
         except IndexError:
             return self.root_stack
 
-    def write(self, item, same_line=False, contents_same_line=True):
+    def write(self, item, same_line=False, contents_same_line=True, indent=True):
         if isinstance(item, Tag):
             self.write_tag(item, same_line, contents_same_line)
         elif isinstance(item, (list, tuple)):
@@ -173,50 +173,52 @@ class Writer(object):
                 self.write(subitem, same_line, contents_same_line)
         else:
             current_stack = self.get_current_stack()
-            self._write_whitespace(current_stack, same_line, False)
+            self._write_whitespace(current_stack, same_line, False, indent)
             if item is not None:
                 self.out_file.write(escape(item))
     __call__ = write
     w = write
 
-    def write_tag(self, tag, same_line=False, contents_same_line=True):
+    def write_tag(self, tag, same_line=False, contents_same_line=True, indent_contents=True, indent_tag=True):
         current_stack = self.get_current_stack()
         if tag.contents:
-            with self.c(tag, same_line, contents_same_line):
+            with self.c(tag, same_line, contents_same_line, indent=indent_tag):
                 if isinstance(tag.contents, str_types):
-                    self.write(tag.contents)
+                    self.write(tag.contents, indent=indent_contents)
                 else:
                     for item in tag.contents:
-                        self.write(item)
+                        self.write(item, indent=indent_contents)
         else:
-            self._write_whitespace(current_stack, same_line, True)
+            self._write_whitespace(current_stack, same_line, True, indent=indent_tag)
             self.out_file.write(tag.empty_tag)
 
-    def write_start_tag(self, tag, same_line=False, contents_same_line=False):
+    def write_start_tag(self, tag, same_line=False, contents_same_line=False, indent=True):
         current_stack = self.get_current_stack()
-        self._write_whitespace(current_stack, same_line, True)
+        self._write_whitespace(current_stack, same_line, True, indent=indent)
         self.out_file.write(tag.start_tag)
         self.stack.append(writer_stack_item(tag, current_stack.indent_level + 1,
                                             current_stack.contents_same_line or contents_same_line))
 
-    def write_end_tag(self):
+    def write_end_tag(self, indent=True):
         popped_stack = self.stack.pop()
         current_stack = self.get_current_stack()
         if not popped_stack.contents_same_line:
-            self.out_file.write('\n{}'.format(self.indent * current_stack.indent_level))
+            indent_level = current_stack.indent_level if indent else 0
+            self.out_file.write('\n{}'.format(self.indent * indent_level))
         self._last_write_is_tag = True
         self.out_file.write(popped_stack.tag.end_tag)
 
-    def context(self, tag, same_line=False, contents_same_line=False):
-        return TagWriterContext(functools.partial(self.write_start_tag, tag, same_line, contents_same_line),
-                                self.write_end_tag)
+    def context(self, tag, same_line=False, contents_same_line=False, indent=True):
+        return TagWriterContext(functools.partial(self.write_start_tag, tag, same_line, contents_same_line, indent=indent),
+                                functools.partial(self.write_end_tag, indent=indent))
 
     c = context
 
-    def _write_whitespace(self, current_stack, same_line, is_tag):
+    def _write_whitespace(self, current_stack, same_line, is_tag, indent=True):
         if not (same_line or current_stack.contents_same_line):
             fmt = '{}' if self._first_line else '\n{}'
-            self.out_file.write(fmt.format(self.indent * current_stack.indent_level))
+            indent_level = current_stack.indent_level if indent else 0
+            self.out_file.write(fmt.format(self.indent * indent_level))
         elif not is_tag and not self._last_write_is_tag:
             self.out_file.write(' ')
         self._first_line = False
