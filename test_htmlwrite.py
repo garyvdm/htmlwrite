@@ -2,8 +2,14 @@ from __future__ import unicode_literals
 
 import io
 import unittest
+import doctest
 
 from htmlwrite import Tag, Writer
+
+
+def load_tests(loader, tests, ignore):
+    tests.addTests(doctest.DocFileSuite('README.md'))
+    return tests
 
 
 class TestTag(unittest.TestCase):
