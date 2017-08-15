@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 
-from collections import deque, namedtuple
+from collections import deque, Iterable, Mapping, namedtuple
 from contextlib import contextmanager
 from functools import partial
 from io import StringIO
@@ -82,7 +82,7 @@ def _start_tag(tag_name, style, class_, args):
 
     style_from_args = ((k[2:], v) for k, v in style_from_args)
     style = style_join((style_item(optimize_attr_name(k), escape(v)) for k, v in chain(style, style_from_args)))
-    if not isinstance(class_, str_types):
+    if not isinstance(class_, str_types) and isinstance(class_, Iterable):
         class_ = class_join(class_)
     tag_args = chain((('class', class_), ('style', style)), tag_args)
     args_html = args_join(k if k in boolean_attrs else args_item(k, escape(v))
@@ -99,17 +99,17 @@ class Tag(object):
     def __init__(self, tag_name, c=None, style=(), class_=(), **args):
         self.tag_name = tag_name
         self.contents = c
-        # Freeze args so that tag methods can be cached
+        # Freeze args to "immutable" hashable types so that tag methods can be cached
         # Sort the dict items for stability in tests (We want PEP 468!)
         self.args = tuple(sorted(args.items()))
-        if isinstance(style, dict):
+        if isinstance(style, Mapping):
             self.style = tuple(style.items())
-        elif isinstance(style, list):
+        elif not isinstance(style, str_types) and isinstance(style, Iterable) and not isinstance(style, tuple):
             self.style = tuple(style)
         else:
             self.style = style
 
-        if isinstance(class_, list):
+        if not isinstance(class_, str_types) and isinstance(class_, Iterable):
             self.class_ = tuple(class_)
         else:
             self.class_ = class_
@@ -168,7 +168,7 @@ class Writer(object):
     def write(self, item, next_same_line=False, contents_same_line=True, indent=True):
         if isinstance(item, Tag):
             self.write_tag(item, next_same_line, contents_same_line)
-        elif isinstance(item, (list, tuple)):
+        elif not isinstance(item, str_types) and isinstance(item, Iterable):
             for subitem in item:
                 self.write(subitem, next_same_line, contents_same_line)
         else:
