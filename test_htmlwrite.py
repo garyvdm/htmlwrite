@@ -1,8 +1,8 @@
 from __future__ import unicode_literals
 
+import doctest
 import io
 import unittest
-import doctest
 
 from htmlwrite import Tag, Writer
 

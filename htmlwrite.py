@@ -1,18 +1,18 @@
 from __future__ import unicode_literals
 
-import collections
-import contextlib
-import functools
-import io
-import sys
 
+from collections import deque, namedtuple
+from contextlib import contextmanager
+from functools import partial
+from io import StringIO
 from itertools import chain, tee
+from sys import version_info
 
 import cachetools.func
 
-from markupsafe import Markup, escape
+from markupsafe import escape, Markup
 
-PY2 = sys.version_info[0] == 2
+PY2 = version_info[0] == 2
 str_types = basestring if PY2 else (str, )
 
 
@@ -135,15 +135,15 @@ class Tag(object):
             return nothing
 
 
-writer_stack_item = collections.namedtuple('WriterStackItem', ['tag', 'indent_level', 'contents_same_line', 'child_same_line'])
+writer_stack_item = namedtuple('WriterStackItem', ['tag', 'indent_level', 'contents_same_line', 'child_same_line'])
 
 
 class TagWriterContext(object):
     __slots__ = ['__enter__', 'write_end_tag']
 
     def __init__(self, writer, tag, child_same_line=False, contents_same_line=False, indent=True):
-        self.__enter__ = functools.partial(writer.write_start_tag, tag, child_same_line, contents_same_line, indent=indent)
-        self.write_end_tag = functools.partial(writer.write_end_tag, indent=indent)
+        self.__enter__ = partial(writer.write_start_tag, tag, child_same_line, contents_same_line, indent=indent)
+        self.write_end_tag = partial(writer.write_end_tag, indent=indent)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.write_end_tag()
@@ -153,7 +153,7 @@ class TagWriterContext(object):
 class Writer(object):
     def __init__(self, out_file, indent='  '):
         self.out_file = out_file
-        self.stack = collections.deque()
+        self.stack = deque()
         self.indent = indent
         self.root_stack = writer_stack_item(None, 0, False, False)
         self._current_line_indent_written = False
@@ -235,10 +235,10 @@ class Writer(object):
             self.out_file.write('\n')
             self._current_line_indent_written = False
 
-    @contextlib.contextmanager
+    @contextmanager
     def only_write_if_successful(self):
         old_out_file = self.out_file
-        self.out_file = io.StringIO()
+        self.out_file = StringIO()
         try:
             yield
             old_out_file.write(self.out_file.getvalue())
