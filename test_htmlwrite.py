@@ -66,20 +66,20 @@ class TestWriter(unittest.TestCase):
 
     def test_write_str(self):
         self.writer('Hello world <')
-        self.assertOutputEqual('Hello world &lt;')
+        self.assertOutputEqual('Hello world &lt;\n')
 
     def test_write_str_2_lines(self):
         self.writer('Hello')
         self.writer('world')
-        self.assertOutputEqual('Hello\nworld')
+        self.assertOutputEqual('Hello\nworld\n')
 
     def test_write_list(self):
         self.writer(['Hello', 'world'])
-        self.assertOutputEqual('Hello\nworld')
+        self.assertOutputEqual('Hello\nworld\n')
 
     def test_write_str_2_same_line(self):
-        self.writer('Hello')
-        self.writer('world', same_line=True)
+        self.writer('Hello', next_same_line=True)
+        self.writer('world', next_same_line=True)
         self.assertOutputEqual('Hello world')
         # Note that a space is automatically written.
 
@@ -89,14 +89,14 @@ class TestWriter(unittest.TestCase):
 
     def test_write_tag_with_str_contents(self):
         self.writer(Tag('div', c='Hello world'))
-        self.assertOutputEqual('<div>Hello world</div>')
+        self.assertOutputEqual('<div>Hello world</div>\n')
 
     def test_write_tag_with_list_contents(self):
         self.writer(Tag('div', c=[
             'Hello world',
             Tag('foo')
         ]))
-        self.assertOutputEqual('<div>Hello world<foo></foo></div>')
+        self.assertOutputEqual('<div>Hello world<foo></foo></div>\n')
 
     def test_write_tag_with_not_contents_same_line(self):
         self.writer(Tag('div', c=['Hello', 'world']), contents_same_line=False)
@@ -104,7 +104,7 @@ class TestWriter(unittest.TestCase):
             '<div>\n'
             '  Hello\n'
             '  world\n'
-            '</div>'
+            '</div>\n'
         )
 
     def test_tag_context(self):
@@ -113,7 +113,7 @@ class TestWriter(unittest.TestCase):
         self.assertOutputEqual(
             '<div>\n'
             '  Hello world\n'
-            '</div>'
+            '</div>\n'
         )
 
     def test_tag_context_no_indent(self):
@@ -122,7 +122,7 @@ class TestWriter(unittest.TestCase):
         self.assertOutputEqual(
             '<div>\n'
             'Hello world\n'
-            '</div>'
+            '</div>\n'
         )
 
     def test_tag_context_tag_no_indent(self):
@@ -131,7 +131,7 @@ class TestWriter(unittest.TestCase):
         self.assertOutputEqual(
             '<div>\n'
             '<span>Hello world</span>\n'
-            '</div>'
+            '</div>\n'
         )
 
     def test_tag_context_tag_content_no_indent(self):
@@ -142,15 +142,15 @@ class TestWriter(unittest.TestCase):
             '  <span>\n'
             'Hello world\n'
             '  </span>\n'
-            '</div>'
+            '</div>\n'
         )
 
-    @unittest.expectedFailure
     def test_tag_same_line(self):
-        with self.writer.c(Tag('div')):
-            self.writer(Tag('span', c='Hello world'), same_line=True)
+        with self.writer.c(Tag('div'), child_same_line=True):
+            with self.writer.c(Tag('span')):
+                self.writer('Hello world')
         self.assertOutputEqual(
             '<div><span>\n'
             '  Hello world\n'
-            '</span></div>'
+            '</span></div>\n'
         )
