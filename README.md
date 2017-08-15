@@ -12,7 +12,7 @@
     ...     with c(Tag('body')):
     ...         with c(Tag('div', class_=('foo', ), s_font_weight='bold')):
     ...             w('Hello world  ')
-    ...         w(Tag('div', c=('ok, bye.', )))
+    ...         w(Tag('div'), 'ok, bye.')
     ... 
     <html>
       <body>

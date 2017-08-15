@@ -7,6 +7,7 @@ from functools import partial
 from io import StringIO
 from itertools import chain, tee
 from sys import version_info
+from warnings import warn
 
 import cachetools.func
 
@@ -98,6 +99,10 @@ class Tag(object):
 
     def __init__(self, tag_name, c=None, style=(), class_=(), **args):
         self.tag_name = tag_name
+        if c is not None:
+            warn('Tag contents is deprecated and will be removed in future. '
+                 'A Tag contents can now be written in one line by passing multiple args to Writer.write',
+                 DeprecationWarning)
         self.contents = c
         # Freeze args to "immutable" hashable types so that tag methods can be cached
         # Sort the dict items for stability in tests (We want PEP 468!)
@@ -135,14 +140,14 @@ class Tag(object):
             return nothing
 
 
-writer_stack_item = namedtuple('WriterStackItem', ['tag', 'indent_level', 'contents_same_line', 'child_same_line'])
+writer_stack_item = namedtuple('WriterStackItem', ['tag', 'indent_level', 'contents_same_line', 'next_child_same_line'])
 
 
 class TagWriterContext(object):
     __slots__ = ['__enter__', 'write_end_tag']
 
-    def __init__(self, writer, tag, child_same_line=False, contents_same_line=False, indent=True):
-        self.__enter__ = partial(writer.write_start_tag, tag, child_same_line, contents_same_line, indent=indent)
+    def __init__(self, writer, tag, next_child_same_line=False, contents_same_line=False, indent=True):
+        self.__enter__ = partial(writer.write_start_tag, tag, next_child_same_line, contents_same_line, indent=indent)
         self.write_end_tag = partial(writer.write_end_tag, indent=indent)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -165,48 +170,73 @@ class Writer(object):
         except IndexError:
             return self.root_stack
 
-    def write(self, item, next_same_line=False, contents_same_line=True, indent=True):
-        if isinstance(item, Tag):
-            self.write_tag(item, next_same_line, contents_same_line)
-        elif not isinstance(item, str_types) and isinstance(item, Iterable):
-            for subitem in item:
-                self.write(subitem, next_same_line, contents_same_line)
+    def write(self, *items, contents_same_line=True, tags_same_line=True, next_same_line=False,
+              indent=True, indent_tags=True, indent_contents=True):
+        current_stack = self.get_current_stack()
+        if current_stack.contents_same_line:
+            contents_same_line = True
+            tags_same_line = True
+        if not indent:
+            indent_tags = False
+            indent_contents = False
+
+        len_items = len(items)
+        tag_items = items[:-1]
+        last_item = items[-1]
+
+        for i, tag_item in enumerate(tag_items):
+            if not isinstance(tag_item, Tag):
+                raise ValueError('Only last item may not be a Tag. Got {!r}'.format(tag_item))
+            if tag_item.contents is not None:
+                raise ValueError('Only contents from last tag is written.')
+            last = i + 2 == len_items
+            self.write_start_tag(tag_item, indent=indent_tags,
+                                 next_child_same_line=contents_same_line if last else tags_same_line)
+
+        if isinstance(last_item, str_types) or not isinstance(last_item, Iterable):
+            last_item = (last_item, )
+
+        current_stack = self.get_current_stack()
+        len_last_item = len(last_item)
+        if len_items == 1:
+            last_item_next_same_line = next_same_line or current_stack.contents_same_line
         else:
-            current_stack = self.get_current_stack()
-            self._write_start_whitespace(current_stack.indent_level, False, indent)
-            if item is not None:
-                self.out_file.write(escape(item))
-            self._write_end_whitespace(current_stack.contents_same_line or next_same_line)
+            last_item_next_same_line = contents_same_line
+
+        for i, sub_item in enumerate(last_item):
+            last = i + 1 == len_last_item
+            self._write_start_whitespace(current_stack.indent_level, isinstance(sub_item, Tag), indent_contents)
+            if sub_item is not None:
+                if isinstance(sub_item, Tag):
+                    self.out_file.write(sub_item.start_tag)
+                    if sub_item.contents:
+                        self.write(sub_item.contents,
+                                   contents_same_line=contents_same_line, tags_same_line=tags_same_line,
+                                   indent_tags=indent_tags, indent_contents=indent_contents, next_same_line=True)
+                    self.out_file.write(sub_item.end_tag)
+                else:
+                    self.out_file.write(escape(sub_item))
+            self._write_end_whitespace(last_item_next_same_line if last else contents_same_line)
+
+        for i, tag_item in enumerate(reversed(tag_items)):
+            last = i + 2 == len_items
+            self.write_end_tag(indent=indent_tags, next_same_line=next_same_line and last)
 
     __call__ = write
     w = write
 
-    def write_tag(self, tag, same_line=False, contents_same_line=True, indent_contents=True, indent_tag=True):
-        if tag.contents:
-            with self.c(tag, same_line, contents_same_line, indent=indent_tag):
-                if isinstance(tag.contents, str_types):
-                    self.write(tag.contents, indent=indent_contents)
-                else:
-                    for item in tag.contents:
-                        self.write(item, indent=indent_contents)
-        else:
-            prev_stack = self.get_current_stack()
-            self._write_start_whitespace(prev_stack.indent_level, True, indent=indent_tag)
-            self.out_file.write(tag.empty_tag)
-            self._write_end_whitespace(prev_stack.contents_same_line or contents_same_line or same_line)
-
-    def write_start_tag(self, tag, child_same_line=False, contents_same_line=False, indent=True):
+    def write_start_tag(self, tag, next_child_same_line=False, contents_same_line=False, indent=True):
         prev_stack = self.get_current_stack()
         new_stack = writer_stack_item(
             tag,
-            prev_stack.indent_level + 1 if not child_same_line else prev_stack.indent_level,
+            prev_stack.indent_level + 1 if indent and not next_child_same_line else prev_stack.indent_level,
             prev_stack.contents_same_line or contents_same_line,
-            child_same_line)
+            next_child_same_line)
         self.stack.append(new_stack)
 
         self._write_start_whitespace(prev_stack.indent_level, True, indent=indent)
         self.out_file.write(tag.start_tag)
-        self._write_end_whitespace(prev_stack.contents_same_line or contents_same_line or child_same_line)
+        self._write_end_whitespace(prev_stack.contents_same_line or contents_same_line or next_child_same_line)
 
     def write_end_tag(self, indent=True, next_same_line=False):
         popped_stack = self.stack.pop()
@@ -214,10 +244,10 @@ class Writer(object):
         self._write_start_whitespace(current_stack.indent_level, True, indent=indent)
         self._last_write_is_tag = True
         self.out_file.write(popped_stack.tag.end_tag)
-        self._write_end_whitespace(current_stack.contents_same_line or next_same_line or current_stack.child_same_line)
+        self._write_end_whitespace(next_same_line or current_stack.contents_same_line or current_stack.next_child_same_line)
 
-    def context(self, tag, child_same_line=False, contents_same_line=False, indent=True):
-        return TagWriterContext(self, tag, child_same_line, contents_same_line, indent)
+    def context(self, tag, next_child_same_line=False, contents_same_line=False, indent=True):
+        return TagWriterContext(self, tag, next_child_same_line, contents_same_line, indent)
 
     c = context
 
