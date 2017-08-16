@@ -13,7 +13,7 @@ import cachetools.func
 from markupsafe import escape, Markup
 
 PY2 = version_info[0] == 2
-str_types = basestring if PY2 else (str, )
+str_types = basestring if PY2 else (str, )  # NOQA
 
 
 def partition(items, predicate=bool):
