@@ -103,7 +103,7 @@ class Tag(object):
         if c is not None:
             warn('Tag contents is deprecated and will be removed in future. '
                  'A Tag contents can now be written in one line by passing multiple args to Writer.write',
-                 DeprecationWarning)
+                 DeprecationWarning, stacklevel=2)
         self.contents = c
         # Freeze args to "immutable" hashable types so that tag methods can be cached
         # Sort the dict items for stability in tests (We want PEP 468!)
