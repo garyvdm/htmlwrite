@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-
-
 from collections import deque, namedtuple
 from collections.abc import Iterable, Mapping
 from contextlib import contextmanager
@@ -13,9 +10,6 @@ from warnings import warn
 import cachetools.func
 
 from markupsafe import escape, Markup
-
-PY2 = version_info[0] == 2
-str_types = basestring if PY2 else (str, )  # NOQA
 
 
 def partition(items, predicate=bool):
@@ -84,7 +78,7 @@ def _start_tag(tag_name, style, class_, args):
 
     style_from_args = ((k[2:], v) for k, v in style_from_args)
     style = style_join((style_item(optimize_attr_name(k), escape(v)) for k, v in chain(style, style_from_args)))
-    if not isinstance(class_, str_types) and isinstance(class_, Iterable):
+    if not isinstance(class_, str) and isinstance(class_, Iterable):
         class_ = class_join(class_)
     tag_args = chain((('class', class_), ('style', style)), tag_args)
     args_html = args_join(k if k in boolean_attrs else args_item(k, escape(v))
@@ -110,12 +104,12 @@ class Tag(object):
         self.args = tuple(sorted(args.items()))
         if isinstance(style, Mapping):
             self.style = tuple(style.items())
-        elif not isinstance(style, str_types) and isinstance(style, Iterable) and not isinstance(style, tuple):
+        elif not isinstance(style, str) and isinstance(style, Iterable) and not isinstance(style, tuple):
             self.style = tuple(style)
         else:
             self.style = style
 
-        if not isinstance(class_, str_types) and isinstance(class_, Iterable):
+        if not isinstance(class_, str) and isinstance(class_, Iterable):
             self.class_ = tuple(class_)
         else:
             self.class_ = class_
@@ -194,7 +188,7 @@ class Writer(object):
             self.write_start_tag(tag_item, indent=indent_tags,
                                  next_child_same_line=contents_same_line if last else tags_same_line)
 
-        if isinstance(last_item, str_types) or not isinstance(last_item, Iterable):
+        if isinstance(last_item, str) or not isinstance(last_item, Iterable):
             last_item = (last_item, )
 
         current_stack = self.get_current_stack()
