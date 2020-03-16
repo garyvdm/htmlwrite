@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 
 
-from collections import deque, Iterable, Mapping, namedtuple
+from collections import deque, namedtuple
+from collections.abc import Iterable, Mapping
 from contextlib import contextmanager
 from functools import partial
 from io import StringIO
